@@ -1,0 +1,20 @@
+* {
+    margin: 0;
+    padding: 0;
+
+}
+
+.container-full {
+    background: linear-gradient(#000, #04364A, #000);
+    width: 100%;
+    height: 100vh;
+    position: relative;
+    touch-action: none;
+}
+
+.container-full svg {
+    position: absolute;
+    width: 100%;
+    height: 100vh;
+    filter: sepia(100%);
+}
