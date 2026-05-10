@@ -1,6 +1,5 @@
 "use strict";
-// Ported from flash
-// credits https://www.deviantart.com/gifhaas/art/Dragon-8681899 dragon by GifHaas on DeviantArt
+
 
 const screen = document.getElementById("screen");
 const xmlns = "http://www.w3.org/2000/svg";
