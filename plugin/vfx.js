@@ -190,11 +190,114 @@ const emitFire = (x, y, angle, scale) => {
 const triggerScreenShake = () => {
   const container = document.querySelector(".container-full");
   container.classList.remove("shake");
-  void container.offsetWidth; // Memicu reflow
+  void container.offsetWidth;
   container.classList.add("shake");
-  // Hapus class setelah animasi selesai agar bisa dipicu lagi nanti
   setTimeout(() => container.classList.remove("shake"), 300);
 };
+
+// =====================================================================
+// Fungsi Render Jurus & Perisai
+// =====================================================================
+const drawJurus = () => {
+  const now = Date.now();
+
+  // --- 1. Proyektil Tengkorak Musuh ---
+  if (typeof skullBullets !== "undefined" && skullBullets.length > 0) {
+    for (let i = 0; i < skullBullets.length; i++) {
+      const b = skullBullets[i];
+      fxCtx.save();
+      // Lingkaran api luar
+      fxCtx.shadowColor = "rgba(255, 40, 0, 0.95)";
+      fxCtx.shadowBlur = 18;
+      fxCtx.fillStyle = "rgba(255, 70, 0, 0.9)";
+      fxCtx.beginPath();
+      fxCtx.arc(b.x, b.y, 9, 0, Math.PI * 2);
+      fxCtx.fill();
+      // Inti putih panas
+      fxCtx.shadowBlur = 6;
+      fxCtx.fillStyle = "rgba(255, 230, 180, 1)";
+      fxCtx.beginPath();
+      fxCtx.arc(b.x, b.y, 3.5, 0, Math.PI * 2);
+      fxCtx.fill();
+      // Ekor partikel kecil
+      fxCtx.fillStyle = `rgba(255, 100, 0, 0.4)`;
+      fxCtx.beginPath();
+      fxCtx.arc(b.x - b.vx * 1.5, b.y - b.vy * 1.5, 5, 0, Math.PI * 2);
+      fxCtx.fill();
+      fxCtx.restore();
+    }
+  }
+
+  // --- 2. Perisai Naga (Shield) ---
+  if (typeof shieldActive !== "undefined" && shieldActive && elems[1]) {
+    const sx = elems[1].x, sy = elems[1].y;
+    const pulse = Math.sin(now * 0.012) * 0.25 + 0.75;
+    const lifeRatio = shieldTimer / 120; // 1.0 → 0.0
+    fxCtx.save();
+    // Lingkaran luar berkilau
+    fxCtx.beginPath();
+    fxCtx.arc(sx, sy, 70, 0, Math.PI * 2);
+    fxCtx.strokeStyle = `rgba(80, 200, 255, ${pulse * 0.65 * lifeRatio})`;
+    fxCtx.lineWidth = 4;
+    fxCtx.shadowColor = "rgba(80, 200, 255, 0.9)";
+    fxCtx.shadowBlur = 22;
+    fxCtx.stroke();
+    // Lingkaran dalam
+    fxCtx.beginPath();
+    fxCtx.arc(sx, sy, 58, 0, Math.PI * 2);
+    fxCtx.strokeStyle = `rgba(200, 240, 255, ${pulse * 0.3 * lifeRatio})`;
+    fxCtx.lineWidth = 1.5;
+    fxCtx.shadowBlur = 8;
+    fxCtx.stroke();
+    // Fill transparan
+    fxCtx.beginPath();
+    fxCtx.arc(sx, sy, 70, 0, Math.PI * 2);
+    fxCtx.fillStyle = `rgba(60, 180, 255, ${0.06 * pulse * lifeRatio})`;
+    fxCtx.fill();
+    fxCtx.restore();
+  }
+
+  // --- 3. Pre-Dash Warning (Ring merah berkedip di musuh) ---
+  if (typeof enemyPreDash !== "undefined" && enemyPreDash && enemyX > 0) {
+    const warn = Math.abs(Math.sin(now * 0.04)); // Cepat berkedip
+    const radius = (48 + warn * 18) * (typeof enemyScale !== "undefined" ? enemyScale : 1);
+    fxCtx.save();
+    fxCtx.beginPath();
+    fxCtx.arc(enemyX, enemyY, radius, 0, Math.PI * 2);
+    fxCtx.strokeStyle = `rgba(255, 80, 0, ${warn * 0.85})`;
+    fxCtx.lineWidth = 5;
+    fxCtx.shadowColor = "rgba(255, 50, 0, 0.9)";
+    fxCtx.shadowBlur = 20;
+    fxCtx.stroke();
+    // Teks peringatan kecil
+    fxCtx.fillStyle = `rgba(255, 200, 0, ${warn})`;
+    fxCtx.font = "bold 13px 'Segoe UI'";
+    fxCtx.textAlign = "center";
+    fxCtx.fillText("DASH!", enemyX, enemyY - radius - 8);
+    fxCtx.restore();
+  }
+
+  // --- 4. Teleport Warning (Flicker/berkedip cepat) ---
+  if (typeof enemyTeleporting !== "undefined" && enemyTeleporting && enemyX > 0) {
+    const flicker = Math.abs(Math.sin(now * 0.08));
+    fxCtx.save();
+    fxCtx.beginPath();
+    fxCtx.arc(enemyX, enemyY,
+      (60 + flicker * 25) * (typeof enemyScale !== "undefined" ? enemyScale : 1),
+      0, Math.PI * 2);
+    fxCtx.strokeStyle = `rgba(200, 80, 255, ${flicker * 0.9})`;
+    fxCtx.lineWidth = 4;
+    fxCtx.shadowColor = "rgba(180, 60, 255, 0.95)";
+    fxCtx.shadowBlur = 25;
+    fxCtx.stroke();
+    fxCtx.fillStyle = `rgba(220, 160, 255, ${flicker * 0.8})`;
+    fxCtx.font = "bold 13px 'Segoe UI'";
+    fxCtx.textAlign = "center";
+    fxCtx.fillText("TELEPORT!", enemyX,
+      enemyY - (60 + flicker * 25) * (typeof enemyScale !== "undefined" ? enemyScale : 1) - 8);
+    fxCtx.restore();
+  }
+}; // akhir drawJurus
 
 const drawFire = () => {
   fxCtx.clearRect(0, 0, width, height);

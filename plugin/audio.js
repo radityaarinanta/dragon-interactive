@@ -146,6 +146,110 @@ const updateBGM = (currentScore) => {
   }
 };
 
+// =====================================================================
+// Suara Evolusi Naga — Setiap Fase Punya Karakter Berbeda
+// =====================================================================
+const playEvolutionSound = (phase) => {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const masterGain = audioCtx.createGain();
+  masterGain.gain.setValueAtTime(0.5, t);
+  masterGain.connect(audioCtx.destination);
+
+  if (phase === 2) {
+    // ⚡ FASE BIRU — Electric Surge: buzz naik + ping kristal
+    const notes = [220, 277.18, 369.99, 493.88]; // Am chord naik
+    notes.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const g   = audioCtx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(freq * 0.5, t + i * 0.07);
+      osc.frequency.linearRampToValueAtTime(freq * 2, t + i * 0.07 + 0.3);
+      g.gain.setValueAtTime(0, t + i * 0.07);
+      g.gain.linearRampToValueAtTime(0.25, t + i * 0.07 + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.07 + 0.5);
+      osc.connect(g).connect(masterGain);
+      osc.start(t + i * 0.07);
+      osc.stop(t + i * 0.07 + 0.6);
+    });
+    // Ping akhir
+    const ping = audioCtx.createOscillator();
+    const pingG = audioCtx.createGain();
+    ping.type = "sine";
+    ping.frequency.setValueAtTime(1200, t + 0.4);
+    pingG.gain.setValueAtTime(0.4, t + 0.4);
+    pingG.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+    ping.connect(pingG).connect(masterGain);
+    ping.start(t + 0.4); ping.stop(t + 1.1);
+
+  } else if (phase === 3) {
+    // 👻 FASE UNGU — Mystic Sweep: arpeggio ethereal naik
+    const freqs = [185, 220, 277.18, 369.99, 493.88, 740]; // D minor pentatonic
+    freqs.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const g   = audioCtx.createGain();
+      osc.type = i % 2 === 0 ? "sine" : "triangle";
+      osc.frequency.setValueAtTime(freq, t + i * 0.1);
+      g.gain.setValueAtTime(0, t + i * 0.1);
+      g.gain.linearRampToValueAtTime(0.3, t + i * 0.1 + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.5);
+      osc.connect(g).connect(masterGain);
+      osc.start(t + i * 0.1); osc.stop(t + i * 0.1 + 0.6);
+    });
+    // Choir-like shimmer
+    const choir = audioCtx.createOscillator();
+    const choirG = audioCtx.createGain();
+    choir.type = "sine";
+    choir.frequency.setValueAtTime(600, t + 0.3);
+    choir.frequency.linearRampToValueAtTime(800, t + 0.8);
+    choirG.gain.setValueAtTime(0, t + 0.3);
+    choirG.gain.linearRampToValueAtTime(0.2, t + 0.5);
+    choirG.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+    choir.connect(choirG).connect(masterGain);
+    choir.start(t + 0.3); choir.stop(t + 1.3);
+
+  } else if (phase === 4) {
+    // 🔥 FASE MERAH — Dragon Roar: heavy drum + brass power chord
+    // Bass thud (drum)
+    const kick = audioCtx.createOscillator();
+    const kickG = audioCtx.createGain();
+    kick.type = "sine";
+    kick.frequency.setValueAtTime(200, t);
+    kick.frequency.exponentialRampToValueAtTime(30, t + 0.3);
+    kickG.gain.setValueAtTime(1.0, t);
+    kickG.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    kick.connect(kickG).connect(masterGain);
+    kick.start(t); kick.stop(t + 0.5);
+
+    // Power chord (brass hits — 3 oscillator detuned)
+    const brassFreqs = [110, 138.59, 164.81]; // A2, C#3, E3 (A major)
+    const brassOffsets = [0, 0.08, 0.16];
+    brassFreqs.forEach((freq, i) => {
+      [freq, freq * 2, freq * 4].forEach((f, octave) => {
+        const osc = audioCtx.createOscillator();
+        const g   = audioCtx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(f, t + brassOffsets[i]);
+        g.gain.setValueAtTime(0, t + brassOffsets[i]);
+        g.gain.linearRampToValueAtTime(0.12 - octave * 0.03, t + brassOffsets[i] + 0.04);
+        g.gain.exponentialRampToValueAtTime(0.001, t + brassOffsets[i] + 0.9);
+        osc.connect(g).connect(masterGain);
+        osc.start(t + brassOffsets[i]); osc.stop(t + 1.2);
+      });
+    });
+    // Final roar sweep
+    const roar = audioCtx.createOscillator();
+    const roarG = audioCtx.createGain();
+    roar.type = "sawtooth";
+    roar.frequency.setValueAtTime(80, t + 0.3);
+    roar.frequency.linearRampToValueAtTime(40, t + 1.0);
+    roarG.gain.setValueAtTime(0.3, t + 0.3);
+    roarG.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+    roar.connect(roarG).connect(masterGain);
+    roar.start(t + 0.3); roar.stop(t + 1.3);
+  }
+};
+
 const stopBGM = () => {
   if (!isBgmPlaying) return;
   isBgmPlaying = false;

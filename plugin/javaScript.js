@@ -83,8 +83,101 @@ let agileTimer = 0;
 const goldenFoodElem = document.getElementById("golden-food");
 
 // --- Variabel Evolusi Ukuran Naga ---
-let dragonScale = 1.0; // Skala global naga, bertambah setiap makan (1.0x → 2.0x)
-let enemyScale  = 1.0; // Skala global musuh, bertambah setiap makan (1.0x → 2.0x)
+let dragonScale = 1.0;
+let enemyScale  = 1.0;
+
+// --- Sistem Jurus Musuh (Enemy Special Attacks) ---
+let enemyPreDash      = false; // Fase peringatan sebelum dash
+let enemyPreDashTimer = 0;
+let enemyDashActive   = false; // Sedang dalam animasi dash
+let enemyDashTimer    = 0;
+let enemyDashVX       = 0;
+let enemyDashVY       = 0;
+let enemyDashCooldown = 480;   // Frame hingga dash berikutnya
+
+let skullBullets      = [];    // Array proyektil tengkorak
+let bulletCooldown    = 0;
+
+let enemyTeleporting     = false; // Fase peringatan teleport
+let enemyTeleportTimer   = 0;
+let teleportCooldown     = 0;
+
+// --- Sistem Perisai Naga (Dragon Shield) ---
+let shieldActive   = false;
+let shieldTimer    = 0;
+let shieldCooldown = 0;
+
+// --- Sistem Nyawa (3 Lives) ---
+const MAX_LIVES = 3;
+let lives = MAX_LIVES;
+let invincibilityTimer = 0;
+const livesDisplayElem = document.getElementById("lives-display");
+
+// --- Sistem Fase Visual ---
+let currentPhase = 1; // Fase saat ini (1-4)
+const phaseBgElem       = document.getElementById("phase-bg");
+const phaseNotifElem    = document.getElementById("phase-notification");
+
+const phaseData = {
+  2: { cls: "p2", title: "⚡ Fase 2: Naga Elektrik",  sub: "Kekuatan listrik membara!" },
+  3: { cls: "p3", title: "👻 Fase 3: Naga Semi-Dewa",  sub: "Aura phantom terlepas!" },
+  4: { cls: "p4", title: "🔥 Fase 4: Naga Dewa Perang", sub: "Kekuatan penuh terbangkitkan!" },
+};
+
+const updatePhaseBg = (phase) => {
+  if (!phaseBgElem) return;
+  phaseBgElem.className = `phase-${phase}`;
+};
+
+const showPhaseNotification = (phase) => {
+  if (!phaseNotifElem || !phaseData[phase]) return;
+  const d = phaseData[phase];
+  phaseNotifElem.innerHTML =
+    `<div class="phase-notif-inner ${d.cls}">
+       <div class="phase-notif-title">${d.title}</div>
+       <div class="phase-notif-sub">${d.sub}</div>
+     </div>`;
+  phaseNotifElem.classList.remove("hidden");
+  // Auto-hide setelah animasi selesai (2.8 detik)
+  setTimeout(() => phaseNotifElem.classList.add("hidden"), 2800);
+};
+
+const updateLivesDisplay = () => {
+  if (!livesDisplayElem) return;
+  let html = "";
+  for (let i = 0; i < MAX_LIVES; i++) {
+    html += i < lives ? "❤️" : "🖤";
+  }
+  livesDisplayElem.innerHTML = html;
+};
+
+const triggerGameOver = () => {
+  playSound("explosion");
+  playSound("gameover");
+  stopBGM();
+  triggerScreenShake();
+  isGameOver = true;
+  document.getElementById("final-score").innerText = score;
+  document.getElementById("game-over-modal").classList.remove("hidden");
+  try { localStorage.setItem("dragonHighScore", highScore); } catch (err) {}
+};
+
+const takeDamage = () => {
+  if (invincibilityTimer > 0 || isGameOver || !gameStarted) return;
+  lives--;
+  updateLivesDisplay();
+  if (lives <= 0) {
+    // Semua nyawa habis → Game Over
+    triggerGameOver();
+  } else {
+    // Masih hidup → Invincibility + visual feedback
+    invincibilityTimer = 150; // 2.5 detik kebal
+    playSound("explosion");
+    triggerScreenShake();
+    // Efek flash merah saat kena damage
+    if (_svgEl) _svgEl.classList.add("invincible-flash");
+  }
+};
 
 // Fungsi tombol Start Screen
 document.getElementById("start-btn").addEventListener("click", () => {
@@ -103,9 +196,43 @@ document.getElementById("restart-btn").addEventListener("click", () => {
   location.reload();
 });
 
-// --- Kontrol Tembak Bola Api (Tahan Klik / Sentuh) ---
+// --- Event Listener Modal Cara Bermain ---
+const howtoModal      = document.getElementById("howto-modal");
+const startScreenModal = document.getElementById("start-screen-modal");
+
+const openHowto = () => {
+  startScreenModal.classList.add("hidden");
+  howtoModal.classList.remove("hidden");
+  howtoModal.querySelector(".howto-body").scrollTop = 0; // Reset scroll ke atas
+};
+
+const closeHowto = () => {
+  howtoModal.classList.add("hidden");
+  startScreenModal.classList.remove("hidden");
+};
+
+document.getElementById("howto-btn").addEventListener("click", openHowto);
+document.getElementById("howto-close-btn").addEventListener("click", closeHowto);
+document.getElementById("howto-back-btn").addEventListener("click", closeHowto);
+
+// Tutup modal cara bermain dengan tombol ESC
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Escape" && !howtoModal.classList.contains("hidden")) {
+    closeHowto();
+  }
+});
+
+// --- Kontrol Tembak Bola Api (Tahan Klik Kiri / Sentuh) ---
 window.addEventListener("mousedown", (e) => {
   if (e.button === 0) isShooting = true;
+  // Klik Kanan → Aktifkan Perisai Naga (score >= 30)
+  if (e.button === 2 && score >= 30 && gameStarted && !isGameOver && !isPaused) {
+    if (!shieldActive && shieldCooldown <= 0) {
+      shieldActive = true;
+      shieldTimer  = 120; // 2 detik perisai aktif
+      shieldCooldown = 720; // 12 detik cooldown
+    }
+  }
 });
 window.addEventListener("mouseup", (e) => {
   if (e.button === 0) isShooting = false;
@@ -196,7 +323,10 @@ const run = () => {
 
   drawStars(); // Animasi partikel bintang di setiap frame
 
-  if (gameStarted) drawFire(); // Animasi partikel api hanya saat main
+  if (gameStarted) {
+    drawFire();   // Partikel api & fireball
+    drawJurus();  // Proyektil musuh, perisai naga, warning dash/teleport
+  }
   let e = elems[0];
   const ax = (Math.cos(3 * frm) * rad * width) / height;
   const ay = (Math.sin(4 * frm) * rad * height) / width;
@@ -255,7 +385,18 @@ const run = () => {
 
     spawnFood();
     updateDragonColor(score);  // Perubahan warna naga
-    dragonScale = Math.min(1.0 + (score / 60) * 1.0, 2.0); // Naga membesar dari 1.0x hingga 2.0x di skor 60
+    dragonScale = Math.min(1.0 + (score / 60) * 1.0, 2.0);
+
+    // --- Deteksi & Trigger Perubahan Fase ---
+    const newPhase = score < 10 ? 1 : score < 20 ? 2 : score < 30 ? 3 : 4;
+    if (newPhase !== currentPhase) {
+      currentPhase = newPhase;
+      updatePhaseBg(newPhase);             // Ganti gradien latar
+      showPhaseNotification(newPhase);     // Tampilkan notifikasi besar
+      if (typeof playEvolutionSound !== "undefined") {
+        playEvolutionSound(newPhase);      // Mainkan suara evolusi khas
+      }
+    }
 
     // Evolusi musuh selaras dengan fase naga
     if (score >= 10) {
@@ -268,16 +409,18 @@ const run = () => {
       spawnPowerup();
     }
 
-    // Peluang 10% untuk memunculkan Mangsa Langka (Golden Food) di skor >= 20
-    if (score >= 20 && !isGoldenFoodActive && Math.random() < 0.1) {
+    // Peluang munculnya Mangsa Langka (Golden Food):
+    // - Guaranteed muncul pertama kali di skor 20
+    // - Setelah itu: 15% peluang per makan di skor >= 18 (lebih langka, lebih berharga)
+    if (score === 20 && !isGoldenFoodActive) {
       const pos = getValidSpawnPosition();
-      goldenFoodX = pos.x;
-      goldenFoodY = pos.y;
-      goldenFoodElem.setAttributeNS(
-        null,
-        "transform",
-        `translate(${goldenFoodX},${goldenFoodY})`,
-      );
+      goldenFoodX = pos.x; goldenFoodY = pos.y;
+      goldenFoodElem.setAttributeNS(null, "transform", `translate(${goldenFoodX},${goldenFoodY})`);
+      isGoldenFoodActive = true;
+    } else if (score >= 18 && score !== 20 && !isGoldenFoodActive && Math.random() < 0.15) {
+      const pos = getValidSpawnPosition();
+      goldenFoodX = pos.x; goldenFoodY = pos.y;
+      goldenFoodElem.setAttributeNS(null, "transform", `translate(${goldenFoodX},${goldenFoodY})`);
       isGoldenFoodActive = true;
     }
 
@@ -386,45 +529,153 @@ const run = () => {
     }
   }
 
-  // --- Deteksi Tubrukan (Kepala naga vs Musuh/Ranjau) ---
-  if (score >= 5) {
-    if (enemyFrozen) {
-      freezeTimer--; // Kurangi waktu beku musuh
-      if (freezeTimer <= 0) {
-        enemyFrozen = false;
-        enemyElem.style.filter = ""; // Kembalikan ke filter glow bawaan di CSS
-      }
-    } else {
-      // Menggerakkan musuh
-      enemyX += enemyVX;
-      enemyY += enemyVY;
-      // Pantulan musuh jika menabrak pinggir layar
-      if (enemyX <= 20 || enemyX >= width - 20) enemyVX *= -1;
-      if (enemyY <= 20 || enemyY >= height - 20) enemyVY *= -1;
-      enemyElem.setAttributeNS(
-        null,
-        "transform",
-        `translate(${enemyX},${enemyY}) scale(${enemyScale.toFixed(2)})`,
-      );
-    }
+  // --- Perisai Naga: Tick setiap frame ---
+  if (shieldActive) { shieldTimer--; if (shieldTimer <= 0) shieldActive = false; }
+  if (shieldCooldown > 0) shieldCooldown--;
 
-    const dxE = e.x - enemyX;
-    const dyE = e.y - enemyY;
-    // Radius tabrakan ikut membesar sesuai skala musuh
-    if (Math.sqrt(dxE * dxE + dyE * dyE) < 45 * enemyScale) {
-      playSound("explosion"); // Suara ledakan game over
-      playSound("gameover"); // Memutar file game over.mp3
-      stopBGM(); // Hentikan musik secara memudar saat Game Over
-      triggerScreenShake(); // Getaran kuat saat mati (Game Over)
-      isGameOver = true;
-      document.getElementById("final-score").innerText = score;
-      document.getElementById("game-over-modal").classList.remove("hidden");
-      try {
-        localStorage.setItem("dragonHighScore", highScore); // Simpan skor tertinggi
-      } catch (err) {}
+  // --- Invincibility Tick ---
+  if (invincibilityTimer > 0) {
+    invincibilityTimer--;
+    if (invincibilityTimer <= 0 && _svgEl) {
+      _svgEl.classList.remove("invincible-flash"); // Hapus flash saat selesai
     }
   }
-  } // Akhir dari blok "if (gameStarted)" yang hilang
+
+  // --- Proyektil Tengkorak: Update posisi & deteksi tabrakan ---
+  for (let i = skullBullets.length - 1; i >= 0; i--) {
+    const b = skullBullets[i];
+    b.x += b.vx; b.y += b.vy;
+    if (b.x < -20 || b.x > width+20 || b.y < -20 || b.y > height+20) {
+      skullBullets.splice(i, 1); continue;
+    }
+    const hx = elems[1] ? elems[1].x : e.x;
+    const hy = elems[1] ? elems[1].y : e.y;
+    // Cek perisai memblokir proyektil
+    if (shieldActive && Math.sqrt((b.x-hx)**2 + (b.y-hy)**2) < 75) {
+      // Flash blok di titik benturan
+      if (fireParticles.length < MAX_FIRE_PARTICLES) {
+        for (let k = 0; k < 6; k++) fireParticles.push({
+          x: b.x, y: b.y,
+          vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8,
+          life: 1, decay: 0.08, size: Math.random()*10+5
+        });
+      }
+      skullBullets.splice(i, 1); continue;
+    }
+    // Proyektil kena kepala naga → kurangi nyawa
+    if (!shieldActive && Math.sqrt((b.x-hx)**2 + (b.y-hy)**2) < 28) {
+      skullBullets.splice(i, 1);
+      takeDamage();
+      if (isGameOver) return;
+      continue;
+    }
+  }
+
+  // --- Deteksi Tubrukan (Kepala naga vs Musuh/Ranjau) ---
+  if (score >= 10) {
+    if (enemyFrozen) {
+      freezeTimer--;
+      if (freezeTimer <= 0) {
+        enemyFrozen = false;
+        enemyElem.style.filter = "";
+        // Kembalikan evolusi visual saat unfreeze
+        const ns = updateEnemyEvolution(score);
+        if (ns) enemyScale = ns;
+      }
+    } else {
+      // === GERAKAN MUSUH ===
+      if (enemyDashActive) {
+        // Saat dashing: gunakan kecepatan dash (jauh lebih cepat)
+        enemyX += enemyDashVX; enemyY += enemyDashVY;
+        if (enemyX < 20) { enemyX = 20; enemyDashVX = Math.abs(enemyDashVX); }
+        if (enemyX > width-20) { enemyX = width-20; enemyDashVX = -Math.abs(enemyDashVX); }
+        if (enemyY < 20) { enemyY = 20; enemyDashVY = Math.abs(enemyDashVY); }
+        if (enemyY > height-20) { enemyY = height-20; enemyDashVY = -Math.abs(enemyDashVY); }
+        enemyDashTimer--;
+        if (enemyDashTimer <= 0) enemyDashActive = false;
+      } else {
+        // Gerakan bouncing normal
+        enemyX += enemyVX; enemyY += enemyVY;
+        if (enemyX <= 20 || enemyX >= width-20) enemyVX *= -1;
+        if (enemyY <= 20 || enemyY >= height-20) enemyVY *= -1;
+      }
+      enemyElem.setAttributeNS(null, "transform",
+        `translate(${enemyX},${enemyY}) scale(${enemyScale.toFixed(2)})`);
+
+      // === JURUS 1: DASH ATTACK (skor >= 30) ===
+      if (score >= 30 && !enemyDashActive) {
+        const dashCD = Math.max(200, 480 - Math.floor((score-30)/5)*20);
+        if (!enemyPreDash) {
+          enemyDashCooldown--;
+          if (enemyDashCooldown <= 0) {
+            enemyPreDash = true; enemyPreDashTimer = 65;
+            enemyDashCooldown = dashCD;
+          }
+        } else {
+          enemyPreDashTimer--;
+          if (enemyPreDashTimer <= 0) {
+            enemyPreDash = false; enemyDashActive = true; enemyDashTimer = 50;
+            const th = elems[1] || elems[0];
+            const ang = Math.atan2(th.y - enemyY, th.x - enemyX);
+            const spd = Math.min(22, 14 + (score-30)*0.2);
+            enemyDashVX = Math.cos(ang)*spd; enemyDashVY = Math.sin(ang)*spd;
+            playSound("explosion");
+          }
+        }
+      }
+
+      // === JURUS 2: PROYEKTIL TENGKORAK (skor >= 40) ===
+      if (score >= 40) {
+        const bulletCD = Math.max(140, 360 - (score-40)*4);
+        bulletCooldown--;
+        if (bulletCooldown <= 0) {
+          bulletCooldown = bulletCD;
+          const th = elems[1] || elems[0];
+          const ang = Math.atan2(th.y - enemyY, th.x - enemyX);
+          const spd = Math.min(13, 7 + (score-40)*0.12);
+          skullBullets.push({ x: enemyX, y: enemyY,
+            vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd });
+          playSound("shoot");
+        }
+      }
+
+      // === JURUS 3: TELEPORT (skor >= 50) ===
+      if (score >= 50) {
+        const teleCD = Math.max(280, 600 - (score-50)*6);
+        if (!enemyTeleporting) {
+          teleportCooldown--;
+          if (teleportCooldown <= 0) {
+            enemyTeleporting = true; enemyTeleportTimer = 90;
+            teleportCooldown = teleCD;
+          }
+        } else {
+          enemyTeleportTimer--;
+          if (enemyTeleportTimer <= 0) {
+            enemyTeleporting = false;
+            const th = elems[1] || elems[0];
+            let tx, ty, tries = 0;
+            do {
+              tx = Math.random()*(width-100)+50;
+              ty = Math.random()*(height-100)+50;
+              tries++;
+            } while (Math.sqrt((tx-th.x)**2 + (ty-th.y)**2) < 250 && tries < 25);
+            enemyX = tx; enemyY = ty;
+            enemyVX = (Math.random()>0.5?1:-1)*Math.abs(enemyVX);
+            enemyVY = (Math.random()>0.5?1:-1)*Math.abs(enemyVY);
+          }
+        }
+      }
+    }
+
+    // Deteksi kepala naga kena musuh → kurangi nyawa
+    const dxE = e.x - enemyX;
+    const dyE = e.y - enemyY;
+    if (!shieldActive && Math.sqrt(dxE*dxE + dyE*dyE) < 45*enemyScale) {
+      takeDamage();
+      if (isGameOver) return;
+    }
+  }
+  } // Akhir dari blok "if (gameStarted)"
 
   for (let i = 1; i < N; i++) {
     let e = elems[i];

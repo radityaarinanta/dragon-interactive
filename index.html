@@ -7,24 +7,257 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="icon" type="image/x-icon" href="favicon.png" />
   </head>
-  <body>
+  <body oncontextmenu="return false">
     <div class="container-full">
       <div class="score-board">
         <div>Score: <span id="score-value">0</span></div>
         <div class="high-score">
           High Score: <span id="highscore-value">0</span>
         </div>
+        <div id="lives-display" class="lives-display">❤️❤️❤️</div>
       </div>
 
       <canvas id="starfield"></canvas>
       <canvas id="fx-canvas"></canvas>
 
+      <!-- Gradien Latar Sinkron Fase -->
+      <div id="phase-bg"></div>
+
+      <!-- Notifikasi Evolusi Fase -->
+      <div id="phase-notification" class="hidden"></div>
+
       <!-- Layar Awalan (Start Screen) -->
       <div id="start-screen-modal">
         <div class="modal-content">
-          <h1>Dragon jack</h1>
-          <p>Kendalikan naga dengan mouse. Hati-hati dengan tengkorak!</p>
-          <button id="start-btn">MULAI MAIN</button>
+          <h1>Dragon Jack</h1>
+          <p class="start-subtitle">Kendalikan naga legendaris.<br/>Bertahan, berevolusi, dan taklukkan!</p>
+          <div class="start-btn-group">
+            <button id="start-btn">⚔️ MULAI MAIN</button>
+            <button id="howto-btn">📖 CARA BERMAIN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Cara Bermain -->
+      <div id="howto-modal" class="hidden">
+        <div class="howto-overlay">
+          <div class="howto-header">
+            <h2>📖 Cara Bermain</h2>
+            <button id="howto-close-btn" title="Tutup">✕</button>
+          </div>
+          <div class="howto-body">
+
+            <!-- SEKSI 1: KONTROL -->
+            <div class="howto-section">
+              <div class="howto-section-title gold">🎮 Kontrol Dasar</div>
+              <div class="howto-cards">
+                <div class="howto-card">
+                  <div class="howto-icon">🖱️</div>
+                  <div class="howto-card-text">
+                    <strong>Gerak Mouse / Sentuh Layar</strong>
+                    <span>Kepala naga mengikuti posisi kursor atau jarimu secara real-time</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">🖱️🔥</div>
+                  <div class="howto-card-text">
+                    <strong>Tahan Klik Kiri / Tahan Sentuh</strong>
+                    <span>Tembakkan Bola Api ke arah musuh — aktif setelah <em>skor ≥ 30</em></span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">🛡️</div>
+                  <div class="howto-card-text">
+                    <strong>Klik Kanan <span class="tag cyan">Perisai</span></strong>
+                    <span>Aktifkan Perisai Naga selama <strong>2 detik</strong> — memblokir proyektil &amp; tabrakan musuh. Cooldown <em>12 detik</em>. Aktif di skor ≥ 30</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">⏸️</div>
+                  <div class="howto-card-text">
+                    <strong>Spasi atau tombol P</strong>
+                    <span>Pause / Lanjutkan permainan kapan saja selama bermain</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SEKSI 1B: SISTEM NYAWA -->
+            <div class="howto-section">
+              <div class="howto-section-title red">❤️ Sistem Nyawa</div>
+              <div class="howto-cards">
+                <div class="howto-card">
+                  <div class="howto-icon">❤️❤️❤️</div>
+                  <div class="howto-card-text">
+                    <strong>Naga Memiliki 3 Nyawa</strong>
+                    <span>Kena musuh atau proyektil <strong>tidak langsung Game Over</strong> — hanya mengurangi 1 nyawa. Baru Game Over saat semua 3 nyawa habis!</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">💫</div>
+                  <div class="howto-card-text">
+                    <strong>Invincibility — 2.5 Detik Kebal</strong>
+                    <span>Setelah kena damage, naga <strong>berkedip merah</strong> dan menjadi kebal selama <em>2.5 detik</em>. Manfaatkan waktu ini untuk makan atau menjauh dari musuh!</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">📊</div>
+                  <div class="howto-card-text">
+                    <strong>Indikator Nyawa di Papan Skor</strong>
+                    <span>Sisa nyawa ditampilkan sebagai ikon hati di bawah skor: <em>❤️ = hidup</em>, <em>🖤 = hilang</em>. Pantau terus agar tidak kehabisan!</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="howto-section">
+              <div class="howto-section-title blue">✨ Item & Power-Up</div>
+              <div class="howto-cards">
+                <div class="howto-card">
+                  <div class="howto-icon item-food">💎</div>
+                  <div class="howto-card-text">
+                    <strong>Kristal Energi <span class="tag gold">+1 Poin</span></strong>
+                    <span>Makanan utama yang selalu ada di lapangan. Makan sebanyak mungkin untuk tumbuh dan berevolusi!</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon item-gold">⭐</div>
+                  <div class="howto-card-text">
+                    <strong>Relik Matahari <span class="tag orange">+5 Poin</span></strong>
+                    <span>Item <strong>langka</strong> berwarna kuning emas. Muncul <strong>15% peluang</strong> mulai skor 18, dan <strong>pasti muncul</strong> di skor 20. Memberikan <em>Mode Lincah</em> selama 5 detik!</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon item-freeze">❄️</div>
+                  <div class="howto-card-text">
+                    <strong>Serpihan Es <span class="tag cyan">Power-Up Beku</span></strong>
+                    <span>Muncul 15% peluang per makan mulai skor 10. Membekukan musuh selama <strong>5 detik</strong> — gunakan kesempatan ini untuk makan sebanyak mungkin!</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SEKSI 3: MUSUH -->
+            <div class="howto-section">
+              <div class="howto-section-title red">💀 Musuh — Tengkorak Api</div>
+              <div class="howto-cards">
+                <div class="howto-card danger">
+                  <div class="howto-icon">💀</div>
+                  <div class="howto-card-text">
+                    <strong>Muncul di Skor 10</strong>
+                    <span>Bergerak memantul di seluruh layar. Menyentuhnya akan <strong>mengurangi 1 nyawa</strong> dan memberimu 2.5 detik kebal — kena 3 kali berarti Game Over!</span>
+                  </div>
+                </div>
+                <div class="howto-card danger">
+                  <div class="howto-icon">⚡</div>
+                  <div class="howto-card-text">
+                    <strong>Makin Cepat Setiap Makan</strong>
+                    <span>Kecepatan musuh bertambah 7% setiap kali kamu makan. Di skor tinggi, musuh bisa bergerak sangat agresif!</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">🔥</div>
+                  <div class="howto-card-text">
+                    <strong>Serang dengan Bola Api (skor ≥ 30)</strong>
+                    <span>Tembak musuh dengan bola api untuk melumpuhkannya 2 detik dan mendorongnya menjauh (Knockback). Musuh terbakar berwarna oranye.</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">📏</div>
+                  <div class="howto-card-text">
+                    <strong>Musuh Membesar Seiring Waktu</strong>
+                    <span>Radius bahaya musuh ikut membesar saat berevolusi — di fase Iblis Infernal (skor 30+), ukurannya <strong>2× lipat</strong> dari awal!</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SEKSI 4: KEMAMPUAN LANJUTAN (SKOR 30+) -->
+            <div class="howto-section">
+              <div class="howto-section-title red">⚔️ Kemampuan Lanjutan — Skor 30+</div>
+              <div class="howto-cards">
+                <div class="howto-card danger">
+                  <div class="howto-icon">💨</div>
+                  <div class="howto-card-text">
+                    <strong>Jurus Musuh 1 — Dash Attack <span class="tag red-tag">Skor 30+</span></strong>
+                    <span>Musuh mengunci posisimu lalu <strong>melesat sangat cepat</strong> selama 0.8 detik. Perhatikan ring merah berkedip + teks <em>"DASH!"</em> — itu peringatan 1 detik sebelum serangan!</span>
+                  </div>
+                </div>
+                <div class="howto-card danger">
+                  <div class="howto-icon">💀</div>
+                  <div class="howto-card-text">
+                    <strong>Jurus Musuh 2 — Proyektil Tengkorak <span class="tag red-tag">Skor 40+</span></strong>
+                    <span>Musuh menembak <strong>bola api merah</strong> yang membidik tepat ke arah kepalamu setiap ~6 detik. Makin tinggi skor, makin cepat dan makin sering!</span>
+                  </div>
+                </div>
+                <div class="howto-card danger">
+                  <div class="howto-icon">🌀</div>
+                  <div class="howto-card-text">
+                    <strong>Jurus Musuh 3 — Teleport <span class="tag red-tag">Skor 50+</span></strong>
+                    <span>Musuh berkedip <strong>ungu</strong> sebagai peringatan lalu berpindah tiba-tiba ke posisi acak yang jauh darimu. Jangan lengah!</span>
+                  </div>
+                </div>
+                <div class="howto-card">
+                  <div class="howto-icon">🛡️</div>
+                  <div class="howto-card-text">
+                    <strong>Kemampuan Naga — Perisai <span class="tag cyan">Klik Kanan</span></strong>
+                    <span>Aktifkan perisai biru bercahaya selama <strong>2 detik</strong>. Memblokir proyektil &amp; mencegah game over dari tabrakan musuh. Cooldown <strong>12 detik</strong>. Gunakan saat melihat peringatan Dash!</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SEKSI 5: EVOLUSI -->
+            <div class="howto-section">
+              <div class="howto-section-title purple">🐉 Evolusi Naga & Musuh</div>
+              <div class="howto-evolution">
+                <div class="evo-row phase-white">
+                  <div class="evo-score">Skor 0–9</div>
+                  <div class="evo-dragon">🐉 <strong>Naga Putih Murni</strong><br/><small>Kecil, lincah, baru lahir</small></div>
+                  <div class="evo-vs">VS</div>
+                  <div class="evo-enemy">💀 <strong>Tengkorak Api Merah</strong><br/><small>Lambat, mudah dihindari</small></div>
+                </div>
+                <div class="evo-row phase-blue">
+                  <div class="evo-score">Skor 10–19</div>
+                  <div class="evo-dragon">🐉 <strong>Naga Biru Elektrik</strong><br/><small>Sayap pertama tumbuh (skor 8)</small></div>
+                  <div class="evo-vs">VS</div>
+                  <div class="evo-enemy">⚡ <strong>Tengkorak Listrik Biru</strong><br/><small>Mulai mengancam, berkilat biru</small></div>
+                </div>
+                <div class="evo-row phase-purple">
+                  <div class="evo-score">Skor 20–29</div>
+                  <div class="evo-dragon">🐉 <strong>Naga Violet Semi-Dewa</strong><br/><small>Tubuh panjang, aura ungu</small></div>
+                  <div class="evo-vs">VS</div>
+                  <div class="evo-enemy">👻 <strong>Tengkorak Phantom Ungu</strong><br/><small>Besar dan berbahaya</small></div>
+                </div>
+                <div class="evo-row phase-red">
+                  <div class="evo-score">Skor 30+</div>
+                  <div class="evo-dragon">🐉 <strong>Naga Merah Dewa Perang</strong><br/><small>Raksasa, tembak bola api!</small></div>
+                  <div class="evo-vs">VS</div>
+                  <div class="evo-enemy">😈 <strong>Tengkorak Iblis Infernal</strong><br/><small>Sangat besar & mematikan!</small></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SEKSI 5: TIPS PRO -->
+            <div class="howto-section">
+              <div class="howto-section-title gold">💡 Tips Pro</div>
+              <div class="howto-tips">
+                <div class="tip-item">🌀 <span>Buat gerakan <strong>melingkar besar</strong> untuk mengecoh musuh yang mengejar</span></div>
+                <div class="tip-item">⭐ <span>Relik Matahari (+5) <strong>langka</strong> — prioritaskan saat muncul, jangan biarkan musuh menghalangi!</span></div>
+                <div class="tip-item">❄️ <span>Simpan power-up es untuk situasi darurat saat musuh terlalu dekat</span></div>
+                <div class="tip-item">🔥 <span>Di skor ≥ 30, tembak musuh dulu sebelum makan — musuh terlumpuhkan 2 detik</span></div>
+                <div class="tip-item">🛡️ <span>Aktifkan <strong>Perisai (klik kanan)</strong> tepat saat melihat ring merah "DASH!" untuk menghindari serangan</span></div>
+                <div class="tip-item">💀 <span>Proyektil musuh (skor 40+) bisa <strong>diblokir perisai</strong> — timing-nya kunci keselamatan!</span></div>
+                <div class="tip-item">💫 <span>Setelah kena damage, kamu <strong>kebal 2.5 detik</strong> — gunakan waktu itu untuk makan kristal sebanyak mungkin!</span></div>
+                <div class="tip-item">🏃 <span>Mulai skor 35, makanan akan <strong>lari menjauhi</strong> nagamu — dekati dari sudut!</span></div>
+                <div class="tip-item">🌀 <span>Saat musuh Teleport (skor 50+), tetap bergerak melingkar sambil cari posisi barunya</span></div>
+              </div>
+            </div>
+
+          </div><!-- end howto-body -->
+          <div class="howto-footer">
+            <button id="howto-back-btn">⬅ Kembali ke Menu</button>
+          </div>
         </div>
       </div>
 
