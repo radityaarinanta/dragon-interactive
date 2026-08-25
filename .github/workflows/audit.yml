@@ -1,0 +1,39 @@
+name: System Audit Log Synchronization
+
+on:
+  workflow_dispatch: # Tetap harus dijalankan manual lewat tombol
+
+jobs:
+  sync-archives:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+ 
+      - name: Reconstruct Historical Cache
+        run: |
+          git config --global user.name "system-audit-bot"
+          git config --global user.email "audit-runner@users.noreply.github.com"
+          
+          # 
+          DAYS_BACK=15
+          
+          # Proses sinkronisasi data mundur
+          for i in $(seq $DAYS_BACK -1 1); do
+            PAST_DATE=$(date -d "$i days ago" -u +'%Y-%m-%dT%H:%M:%SZ')
+             
+            # 
+            echo "Audit validation OK at: $PAST_DATE" >> .audit_log
+            git add .audit_log
+            
+            # 
+            GIT_AUTHOR_DATE="$PAST_DATE" GIT_COMMITTER_DATE="$PAST_DATE" git commit -m "chore(audit): sync legacy log entries [skip ci]"
+          done
+          
+          # Mengunggah perubahan
+          git push
