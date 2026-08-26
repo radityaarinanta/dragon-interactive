@@ -18,7 +18,7 @@ jobs:
       - name: Proses Looping Commit Masa Lalu
         run: |
           # WAJIB UBAH BARIS DI BAWAH INI DENGAN DATA ASLIMU
-          git config --global user.email "radittantra36gmail.com"
+          git config --global user.email "radittantra36@gmail.com"
           git config --global user.name "radityaarinanta"
           
           DAYS_BACK=30
