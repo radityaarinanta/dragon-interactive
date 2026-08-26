@@ -1,39 +1,38 @@
-name: System Audit Log Synchronization
+name: 
 
 on:
-  workflow_dispatch: # Tetap harus dijalankan manual lewat tombol
+  workflow_dispatch:
 
 jobs:
-  sync-archives:
+  buat-commit-mundur:
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout Source Code
+      - name: Tarik Kode
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
- 
-      - name: Reconstruct Historical Cache
+
+      - name: Proses Looping Commit Masa Lalu
         run: |
-          git config --global user.name "system-audit-bot"
-          git config --global user.email "audit-runner@radityaarinanta.github.com"
+          # WAJIB UBAH BARIS DI BAWAH INI DENGAN DATA ASLIMU
+          git config --global user.email "radittantra36gmail.com"
+          git config --global user.name "radityaarinanta"
           
-          # 
-          DAYS_BACK=15
+          DAYS_BACK=30
           
-          # Proses sinkronisasi data mundur
           for i in $(seq $DAYS_BACK -1 1); do
             PAST_DATE=$(date -d "$i days ago" -u +'%Y-%m-%dT%H:%M:%SZ')
-             
-            # 
-            echo "Audit validation OK at: $PAST_DATE" >> .audit_log
-            git add .audit_log
             
-            # 
-            GIT_AUTHOR_DATE="$PAST_DATE" GIT_COMMITTER_DATE="$PAST_DATE" git commit -m "chore(audit): sync legacy log entries [skip ci]"
+            # Mengubah file biasa bernama riwayat.txt
+            echo "Menambahkan kontribusi untuk tanggal: $PAST_DATE" >> riwayat.txt
+            git add riwayat.txt
+            
+            # Melakukan commit mundur
+            GIT_AUTHOR_DATE="$PAST_DATE" GIT_COMMITTER_DATE="$PAST_DATE" git commit -m "Commit masa lalu: $PAST_DATE"
           done
           
-          # Mengunggah perubahan
+          # Dorong ke repositori
           git push
