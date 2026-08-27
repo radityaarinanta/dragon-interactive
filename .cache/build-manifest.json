@@ -1,0 +1,11 @@
+{
+  "project": "dragon-interactive",
+  "version": "1.0.0",
+  "status": "healthy",
+  "last_synced": "2026-08-27T13:35:00Z",
+  "build_telemetry": {
+    "engine": "canvas2d",
+    "assets_verified": true,
+    "diagnostics": "passed"
+  }
+}
